@@ -305,25 +305,59 @@ function runOneProvider(service: ServiceId | 'Gateway'): {
   process.stderr.write(result.stderr || '');
 
   let parsed: any = null;
-  // Verifier prints JSON blob on success/failure in some paths; also look for PASSED line
-  const jsonMatch = combined.match(/\{"errors":\[[\s\S]*"result":\s*(true|false)\s*\}/);
-  if (jsonMatch) {
+
+  // Prefer structured file from verify-provider.ts (JSON is no longer dumped to console)
+  const fileMatch = combined.match(/PROVIDER_RESULT_FILE=(.+)/);
+  const resultFile =
+    (fileMatch?.[1] || '').trim() ||
+    path.join(
+      reportsDir,
+      `provider-verify-${providerName.replace(/[^\w.-]+/g, '_')}.json`
+    );
+  if (fs.existsSync(resultFile)) {
     try {
-      parsed = JSON.parse(jsonMatch[0]);
+      parsed = JSON.parse(fs.readFileSync(resultFile, 'utf8'));
     } catch {
       parsed = null;
     }
   }
 
+  // Legacy: scrape JSON blob from console (older verify-provider)
+  if (!parsed) {
+    const jsonMatch = combined.match(
+      /\{"errors":\[[\s\S]*"result":\s*(true|false)\s*\}/
+    );
+    if (jsonMatch) {
+      try {
+        parsed = JSON.parse(jsonMatch[0]);
+      } catch {
+        parsed = null;
+      }
+    }
+  }
+
+  // Success: structured result, exit 0 + PASSED conclusion, or legacy "verification PASSED"
+  const passedLine =
+    /verification PASSED/i.test(combined) ||
+    new RegExp(`${providerName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*:\\s*PASSED\\b`, 'i').test(
+      combined
+    ) ||
+    /: PASSED\b/i.test(combined);
+
   const success =
-    (result.status === 0 && /verification PASSED/i.test(combined)) ||
-    parsed?.result === true;
+    parsed?.result === true ||
+    (result.status === 0 && parsed?.result !== false && passedLine) ||
+    (result.status === 0 && parsed?.result !== false && !parsed && passedLine);
 
   return {
     provider: providerName,
-    success,
+    success: Boolean(success),
     interactionResults: parsed?.interactionResults || [],
-    errors: parsed?.errors || (success ? [] : [{ interaction: providerName, mismatch: combined.slice(-2000) }]),
+    errors:
+      parsed?.errors ||
+      (success
+        ? []
+        : [{ interaction: providerName, mismatch: combined.slice(-2000) }]),
     durationMs: Date.now() - started,
   };
 }

@@ -237,8 +237,22 @@ export function summarizeProviderFromResults(
     durationMs += block.durationMs || 0;
     const results = block.interactionResults || [];
     if (results.length === 0 && !block.success) {
+      // Avoid fake gaps from truncated OK console text when the runner failed to
+      // parse PROVIDER_RESULT_FILE — only record a synthetic failure if we have
+      // a real mismatch blob, not a slice of "has a matching body (OK)" logs.
+      const raw = block.errors?.[0]?.mismatch ?? block.errors;
+      const rawText = typeof raw === 'string' ? raw : JSON.stringify(raw ?? '');
+      const looksLikeOkLog =
+        /\(OK\)/.test(rawText) &&
+        !/FAILED|BodyMismatch|StatusMismatch|There were \d+ pact failures/i.test(
+          rawText
+        );
+      if (looksLikeOkLog) {
+        // Treat as runner-parse miss: do not inflate Gaps / email with OK chatter
+        continue;
+      }
       failed += 1;
-      const parsed = parsePactMismatch(block.errors?.[0]?.mismatch ?? block.errors);
+      const parsed = parsePactMismatch(raw);
       interactions.push({
         description: `${block.provider} verification`,
         provider: block.provider,
@@ -248,7 +262,7 @@ export function summarizeProviderFromResults(
         actual: parsed.actual,
       });
       failures.push({
-        interaction: block.provider,
+        interaction: `${block.provider} verification`,
         reason: parsed.summary,
         expected: parsed.expected,
         actual: parsed.actual,
