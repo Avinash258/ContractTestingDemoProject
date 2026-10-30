@@ -18,6 +18,7 @@ export function buildStateHandlers(): Record<string, () => Promise<void>> {
     'CLM produces CT-00 for MDM': noop,
     'CLM has engagement context for MDM': noop,
     'CLM has downstream contracts to MDM': noop,
+    'CLM v2 status is available': noop,
     'MDM service is running': noop,
     'MDM has entities for ACC': noop,
     'MDM has downstream contracts to ACC': noop,
