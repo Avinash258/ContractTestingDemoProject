@@ -291,7 +291,7 @@ export function collectCoveredConcrete(opts: {
     // optional testdata
   }
 
-  // --- Consumer source static withRequest('METHOD', '/literal') ---
+  // --- Consumer source static withRequest('METHOD', '/literal') or addInteraction ---
   if (fs.existsSync(opts.consumerDir)) {
     walkTsFiles(opts.consumerDir, (file, text) => {
       const re =
@@ -299,6 +299,12 @@ export function collectCoveredConcrete(opts: {
       let m: RegExpExecArray | null;
       while ((m = re.exec(text))) {
         add(m[1], m[2], `consumer:${path.relative(process.cwd(), file)}`);
+      }
+
+      const reAdd = /withRequest:\s*\{\s*method:\s*['"](GET|POST|PUT|PATCH|DELETE)['"]\s*,\s*path:\s*['`]([^'`$]+)['`]/g;
+      let ma: RegExpExecArray | null;
+      while ((ma = reAdd.exec(text))) {
+        add(ma[1], ma[2], `consumer:${path.relative(process.cwd(), file)}`);
       }
     });
   }
@@ -658,7 +664,7 @@ export function formatCoverageMarkdown(report: CoverageReport): string {
   lines.push(
     `## Equivalent coverage note`,
     ``,
-    `Service Pact paths \`/health\`, \`/contracts/ct-*\`, \`/downstream/{peer}\` equal Swagger \`/api/proxy/{SVC}/…\` (gateway is a transparent proxy).`,
+    `Service Pact paths \`/health\`, \`/contracts/ct-*\`, \`/downstream/{peer}\` equal Swagger \`/api/proxy/{SVC}/ï¿½\` (gateway is a transparent proxy).`,
     ``
   );
   return lines.join('\n');
