@@ -36,6 +36,7 @@ export function buildStateHandlers(): Record<string, () => Promise<void>> {
     'CLM has no upstream contracts to MDM': noop,
     'DOC has no downstream contracts to MDM': noop,
     'MDM has no upstream contracts to ACC': noop,
+    'CLM v2 status is available': noop,
   };
 
   for (const ct of CONTRACTS) {

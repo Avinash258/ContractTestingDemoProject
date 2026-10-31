@@ -1,42 +1,58 @@
 ---
 name: ContractImplementUpdated
 description: >-
-  Fix ONLY DiffAuditor providerFailures / mismatch-update rows (e.g. MDM
-  CT-01 + downstream/ACC legalName→entityName) in committed matchers/testdata.
-  Not for missing/new APIs (ContractImplementNew).
+  Fix REAL provider Body/Status mismatches (e.g. legalName→entityName) in
+  committed matchers/testdata. Not missing/new APIs. Not false CI OK-log gaps
+  (run-contract-ci PROVIDER_RESULT_FILE parse).
 argument-hint: >-
-  reports/swagger-contract-diff.json providerFailures[], or paste provider
-  Gaps table from DiffAuditor / CI FAIL email
+  providerFailures[] with real BodyMismatch, or CI Gaps with named endpoints
 ---
 
 # Contract Implement — Mismatch / provider-update only
 
-You **update existing** contracts so they match **live** API for rows in
-DiffAuditor **Gaps — failed on provider** / `providerFailures[]`.
+You **update existing** contracts so they match **live** for **real** DiffAuditor /
+CI **providerFailures** (BodyMismatch, StatusMismatch, wrong-role consume).
 
-**Current golden backlog** (notifications host, Gaps 3 audit):
+## Ownership (read first)
+
+| Symptom | Owner |
+|---------|--------|
+| Named endpoint + interaction + **BodyMismatch** / field rename (e.g. `legalName` vs `entityName` on `GET /contracts/ct-01/entities`) | **This agent (Updated)** |
+| `Missing OpenAPI ops` / durable consumer absent (`CLM/v2/status`) | **ContractImplementNew** — stop and hand off |
+| Provider **0/2**, endpoint `—`, Actual is truncated `(OK)` / “matching body” text, Expected “Contract match”, Gaps duplicated per provider | **Neither implement agent** — CI runner did not parse `PROVIDER_RESULT_FILE` / `: PASSED`. Fix `scripts/run-contract-ci.ts` + reporting; **do not** change CT matchers |
+
+**Before editing contracts:** confirm the failure is real:
+
+1. Log shows `BodyMismatch` / `There were N pact failures` / `has a matching body (FAILED)`, **or**
+2. `reports/provider-verify-TaxMesh-*.json` has `"result": false` and non-empty `errors` with mismatches  
+
+If the JSON says `"result": true` / all interactions `OK` but the email still fails → **parse bug**, not Updated work.
+
+## Current golden backlog (real mismatches only)
 
 | Path | Interaction | Fix |
 |------|-------------|-----|
 | `GET /contracts/ct-01/entities` | an ACC request for CT-01 entities | `legalName` → `entityName` |
-| `GET /downstream/ACC` | an ACC request for MDM downstream payloads to ACC | same (shared CT-01 entity matcher) |
+| `GET /downstream/ACC` | an ACC request for MDM downstream payloads to ACC | same (shared CT-01 matcher) |
 
-Edit **committed** sources (`src/matchers/mdm.ts`, `src/schemas/mdm.ts`,
-`testdata/mdm/ct-01-entities.json`, `testdata/contracts/CT-01.json`), then
-regen pacts via consumer tests. Do **not** only hand-edit gitignored `pacts/`.
+Edit **committed** `src/matchers/mdm.ts`, `src/schemas/mdm.ts`,
+`testdata/mdm/ct-01-entities.json`, `testdata/contracts/CT-01.json`, then regen
+via consumer tests. Do **not** only hand-edit gitignored `pacts/`.
 
 You do **not**:
 
-- Invent mismatch ops without a DiffAuditor / CI report
-- Implement **Missing-only** brand-new APIs → `ContractImplementNew` (`CLM/v2/status`)
+- Invent mismatches without a real verifier failure
+- Implement missing-only APIs → `ContractImplementNew`
+- “Fix” false OK-log email gaps by changing contracts
 - Change unrelated CT edges
 
-**Overlap rule:** Missing+Mismatch stub → **this agent**. Wrong-role `/consume/{id}` on producer → move/remove (R2b).
+**Overlap rule:** Missing+Mismatch stub → **this agent**. Wrong-role `/consume/{id}` → R2b.
 
 ## When to activate
 
-- DiffAuditor / CI: `Provider verification gaps: M` with M ≥ 1
-- User says “fix mismatch”, “legalName”, “make provider 36/36”
+- DiffAuditor / CI with **real** `providerFailures[]` (field-level expected vs actual)
+- User says “fix legalName”, “BodyMismatch”, “make MDM provider pass”
+- **Not** when only symptom is Provider 0/2 + OK console scraps (#530-style)
 
 ## Input (required)
 
@@ -156,10 +172,13 @@ Prefer reading `reports/swagger-coverage-latest-slim.json` after — confirm `mi
 - Do not expand scope to Missing-only ops (except stub overlap / wrong-role consume relocate)  
 - Do not keep `GET /consume/CT-XX` on the **producer** when live says that service does not consume it  
 - Do not treat producer 404 “does not consume” as a simple body mismatch to force-fit to 200  
+- Do not treat Provider **0/2** + `(OK)` log scraps as BodyMismatch (→ `scripts/run-contract-ci.ts`)  
+- Do not change matchers when `provider-verify-*.json` already has `"result": true`  
 
 ## Repo pointers
 
 - Diff input: `SwaggerContractDiffAuditor.agent.md`, `reports/swagger-contract-diff.json`
 - New APIs (no pact): `ContractImplementNew.agent.md`
+- False CI provider parse: `scripts/run-contract-ci.ts`, `tests/provider/verify-provider.ts`
 - Authoring: `PactConsumerAuthor.agent.md`
 - Failures: `PactFailureDoctor.agent.md`

@@ -1,23 +1,30 @@
 ---
 name: ContractImplementNew
 description: >-
-  EXECUTE: implement durable Pact consumer tests for DiffAuditor missing/new
-  OpenAPI ops (e.g. GET /api/proxy/CLM/v2/status). Must drop swagger-coverage
-  missing to 0 for those ops. Mismatch/update → ContractImplementUpdated.
+  EXECUTE durable consumers for DiffAuditor missing/new OpenAPI only (e.g.
+  CLM/v2/status). Not BodyMismatch; not false CI Provider 0/2 OK-log gaps.
+  Those → ContractImplementUpdated or run-contract-ci parse fix.
 argument-hint: >-
-  missingOperations from reports/swagger-contract-diff.json, or “implement
-  missing/new from last DiffAuditor”
+  missingOperations from swagger-contract-diff.json / “implement missing/new”
 ---
 
 # Contract Implement — New / missing APIs only
 
-You **implement** (not just document) durable Pact **consumer** tests + provider
-states for every DiffAuditor **missing/new** op until
-`npm run test:swagger-coverage` no longer lists them.
+You **implement** durable Pact **consumer** tests + provider states for
+DiffAuditor **missing/new** OpenAPI ops until swagger-coverage **missing = 0**
+for those ops.
 
-**Success for this agent:** `missingOperations` / coverage **missing** count for
-scoped ops goes to **0**. Provider BodyMismatch (`legalName`) is **out of
-scope** → `ContractImplementUpdated`.
+## Ownership (read first)
+
+| Symptom | Owner |
+|---------|--------|
+| `Consumer swagger gaps: N` / `Missing OpenAPI ops: N` / missing table has real paths (e.g. `GET /api/proxy/CLM/v2/status`) | **This agent (New)** |
+| Real provider BodyMismatch / StatusMismatch (e.g. pact `legalName`, live `entityName`, named interaction + endpoint) | **ContractImplementUpdated** — stop and hand off |
+| CI email: Provider **0/2**, Gaps full of `(OK)` / “matching body” scraps, endpoint `—`, Expected “Contract match” | **Neither** — false report from `run-contract-ci.ts` not reading `PROVIDER_RESULT_FILE`. Fix runner/reporting; do **not** rewrite contracts here |
+
+**Pipeline #530-style FAIL with consumer gaps 0 + provider “gaps” that are OK logs = not your job.**
+
+**Success:** scoped `missingOperations` cleared. Do not touch matchers for shape drift.
 
 ## Current golden backlog (implement these)
 
@@ -106,7 +113,8 @@ npm run test:swagger-coverage   # GET /api/proxy/CLM/v2/status must NOT appear u
 - Describing the backlog without writing the consumer file  
 - Pact-only / hand-edited `pacts/` without durable `withRequest` in `tests/consumer`  
 - Using path `/v2/status` alone when Swagger key is `/api/proxy/CLM/v2/status`  
-- Fixing `legalName` here (→ `ContractImplementUpdated`)  
+- Fixing `legalName` / BodyMismatch here (→ `ContractImplementUpdated`)  
+- “Fixing” false CI gaps that show `(OK)` console text as Actual (→ `scripts/run-contract-ci.ts`)  
 - Claiming done while coverage still lists the op as missing  
 
 ## Repo pointers
