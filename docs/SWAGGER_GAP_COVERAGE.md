@@ -1,7 +1,7 @@
 # Swagger ? Pact coverage gap analysis
 
 Source: `https://notifications-ads-cnet-room.trycloudflare.com/openapi.json`
-Date: 2026-10-30
+Date: 2026-10-31
 
 ## Summary
 
